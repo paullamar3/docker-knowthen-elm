@@ -1,0 +1,139 @@
+#!/bin/bash
+
+## A utility script for starting a docker container
+
+set -e
+
+USAGE="$(basename "$0") [-h] [-t] [-i] [-G] [-g] [-S] [-r]
+                     [-v HOST_DIR]
+		     [-n CONTAINER_NAME] 
+		     [-c DATA_CONTAINER]
+                     IMAGE [ACTION [ARGS]]
+
+This script simplifies the starting of Docker containers by
+allowing for some of the most common actions while hiding the 
+details of how they are implemented.
+
+     -h         Displays this help message.
+
+     -t         Container takes its time from the host.
+     
+     -i         Container is interactive.
+
+     -G         Container needs access to host's X11.
+
+     -g         Container uses Git.
+
+     -S         Suppress entrpoint arguments.
+
+     -r         Auto-remove container on exit.
+     
+     -v HOST_DIR:CONTAINER_DIR
+                Mounts a host volume.
+
+     -n CONTAINER_NAME
+                The name for the container.
+
+     -c DATA_CONTAINER
+                The name of a data container.
+"
+
+# First set up default values for the options.
+volcount=0
+cdatacount=0
+vols=""
+htime=""
+interact=""
+gui=""
+cname=""
+cdata=""
+gitnm=""
+gitemail=""
+newuse=""
+newuid=""
+suppr=""
+remv=""
+mediadir=""
+workdir=""
+
+# Parse any options
+while getopts ":htiGgSv:n:c:" opt; do
+	case $opt in 
+		h)
+			echo "$USAGE"
+			exit
+			;;
+		v)
+			mediadir="$( basename $OPTARG )"
+			vols[$volcount]="-v $OPTARG:/media/$mediadir/"
+			volcount=$(( volcount + 1 ))
+			workdir="-d $mediadir"
+			;;
+		t)
+			htime="-v /etc/localtime:/etc/localtime:ro"
+			;;
+		i)
+			interact="-it"
+			;;
+		G)
+			gui="-e DISPLAY --net=host"
+			;;
+		g)
+			if [ -z $( which git ) ]; then
+				echo "No git available on host." >&2
+				continue
+			fi
+			gitnm="-g $( git config user.name | sed 's/ /_/g' )"
+			gitemail="-e $( git config user.email )"
+			;;
+		S)
+			suppr="y"
+			;;
+		r)
+			remv="--rm=true"
+			;;
+		n)
+			cname="--name $OPTARG"
+			;;
+		c)
+			cdata[$cdatacount]="--volumes-from $OPTARG"
+			cdatacount=$(( cdatacount + 1 ))
+			;;
+		\?)
+			echo "Invalid option: -$OPTARG" >&2
+			exit 1
+			;;
+		:)
+			echo "Option -$OPTARG requires an argument." >&2
+			exit 1
+			;;
+	esac
+done
+
+# If we are starting either an inteeractive container or a GUI 
+# container then set up the new user arguments.
+if [ -n "$interact" -o -n "$gui" ]; then
+	newuse="-u $USER"
+	newuid="-U $UID"
+fi
+
+entryargs=""
+if [ -z $suppr ]; then
+	entryargs=" $newuse $newuid $gitnm $gitemail $workdir "
+fi
+
+# Shift to the positional arguments
+shift $(( OPTIND - 1 ))
+
+if [ "$#" -lt 1 ]; then
+	echo "Must specify the docker image to start." >&2
+	exit
+fi
+
+image="$1"
+
+shift
+
+set -x
+docker run $interact $gui $htime $remv ${vols[*]} ${cdata[*]} $cname $image $entryargs "$@"
+set +x

@@ -1,0 +1,77 @@
+#!/bin/bash
+
+## A utility script for adding a new user.
+## Non-interactive.
+
+set -e
+
+USAGE="$(basename "$0") [-h] [-u UID] [-g GID] NAME LOGIN
+
+This script uses 'adduser' to create a new user with their new
+home directory. 
+
+      NAME               The name of the user being created.
+      LOGIN              The login for the user being created.
+      -u UID             A specific user ID value for the new user.
+      -g GID             A specific group ID for the new user's
+                             new group.
+      -h                 Disply this help message.
+
+"
+
+# First set up the default values.
+new_uid=""                                         # New user ID
+new_gid=""                                         # New group ID
+
+# Parse any options
+while getopts ":hu:g:" opt; do
+	case $opt in
+		h)
+			echo "$USAGE"
+			exit
+			;;
+		u)
+			new_uid="$OPTARG"
+			;;
+		g)
+			new_gid="$OPTARG"
+			;;
+		\?)
+			echo "Invalid option: -$OPTARG" >&2
+			exit 1
+			;;
+		:)
+			echo "Option -$OPTARG requires an argument." >&2
+			exit 1
+			;;
+	esac
+done
+
+# Shift to the positional arguments
+shift $(( OPTIND - 1 ))
+
+if [ "$#" -lt 2 ]; then
+	echo "Both a user name and a user login must be specified." >&2
+	exit 1
+fi
+
+# Get the positional arguments
+new_name=$1
+new_login=$2
+
+# Issue the adduser command.
+if [ -z "$new_uid" -a -z "$new_gid" ]; then
+	adduser --disabled-password --gecos "$new_name,,," $new_login
+elif [ -z "$new_gid" ]; then
+	adduser --uid $new_uid --disabled-password --gecos "$new_name,,," $new_login
+elif [ -z "$new_uid" ]; then
+	addgroup --gid $new_gid $new_login
+	adduser --gid $new_gid --disabled-password --gecos "$new_name,,," $new_login
+else 
+	addgroup --gid $new_gid $new_login
+	adduser --uid $new_uid --gid $new_gid --disabled-password --gecos "$new_name,,," $new_login
+fi
+
+
+exit
+
