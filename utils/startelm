@@ -1,0 +1,93 @@
+#!/bin/bash
+
+## A script for starting the 'docker-knowthen-elm' container.
+## This script assumes that the 'Dstart' and the 'Dxtemp' 
+## utility scripts are in your path.
+
+set -e
+
+USAGE="$(basename "$0") [-h] [-s] [-x]
+		[-d DIRECTORY]
+		CONTAINER
+
+This script checks if the given container exists and restarts
+it if it does. If the container does not exist it issues
+the 'docker run' command to create the container from 
+the 'paullamar3/docker-knowthen-elm' image.
+
+	-h		Displays this help screen.
+
+	-s		Runs the docker commands with sudo.
+			(You will be prompted for password.)
+
+	-x		Issues 'xhost -' before starting the container.
+			Issues 'xhost +' 20 seconds later.
+
+	-d DIRECTORY	Mount this host directory to the container.
+			The current directory is mounted by default.
+
+	CONTAINER	The name of the container.
+
+Note that this script assumes you have your Git global variables
+set on the host you are using. Specifically 'user.name' and 
+'user.email'. 
+"
+
+# First set up default values for the options.
+usesudo="";
+xhst="";
+mntdir="$PWD"
+ctnr=""
+
+# Parse any options
+while getopts ":hsxd:" opt; do
+	case $opt in
+		h)
+			echo "$USAGE"
+			exit
+			;;
+		s)
+			usesudo="sudo "
+			;;
+		x)
+			xhst="-x"
+			;;
+		d)
+			mntdir="$OPTARG"
+			;;
+		\?)
+			echo "Invalid option: -$OPTARG" >&2
+			exit 1
+			;;
+		:)
+			echo "Option -$OPTARG requires an argument." >&2
+			exit 1
+			;;
+	esac
+done
+
+shift $(( OPTIND - 1 ))
+
+# Get the name of the container.
+if [ -z "$1" ]; then
+	echo "Must specify a name for the container." >&2
+	exit 1
+fi
+
+ctnr="$1"
+
+# Deisable xhost if required.
+if [ -n "$xhst" ]; then
+	echo "Disabling X security for 20 seconds."
+	Dxtemp 20
+fi
+
+if [ -z "$($usesudo docker ps -a | grep $ctnr)" ]; then
+	sudoswitch=""
+	if [ -n "$usesudo" ]; then
+		$sudoswitch="-s"
+	fi
+	Dstart -tiGg $sudoswitch -n $ctnr -v $mntdir paullamar3/docker-knowthen-elm:latest
+else
+	$usesudo docker start -i $ctnr
+fi

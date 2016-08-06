@@ -1,0 +1,17 @@
+#!/bin/bash
+
+## A script to temporarily shut down X server authentication
+
+set -e
+
+# Set default time to one minute
+slptm="60"
+
+if [ -n "$1" ]; then
+	slptm="$1"
+fi
+
+set -x
+bash -c "xhost +; sleep $slptm; xhost -" > /dev/null &
+set +x
+

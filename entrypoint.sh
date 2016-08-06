@@ -77,8 +77,6 @@ done
 if [ -n "$new_user" -a -z "$( getent passwd $new_user )" ]; then
 	p_adduser "$new_uid" "$new_gid" "$new_user" "$new_user"
 elif [ -z "$new_user" -a ! -f /root/initialized ]; then
-	vim -c "PlugInstall|q|q"
-	tlmgr init-usertree
 	touch /root/initialized
 fi
 
@@ -102,6 +100,7 @@ if [ -n "$workdir" ]; then
 fi
 
 if [ -n "$new_user" ]; then 
+	gosu "$new_user" atom
 	gosu "$new_user" bash
 else
 	exec bash
