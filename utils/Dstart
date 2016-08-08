@@ -63,7 +63,7 @@ xhst=""
 usesudo=""
 
 # Parse any options
-while getopts ":htiGgSrxv:n:c:" opt; do
+while getopts ":htiGgSsrxv:n:c:" opt; do
 	case $opt in 
 		h)
 			echo "$USAGE"
@@ -96,7 +96,7 @@ while getopts ":htiGgSrxv:n:c:" opt; do
 			suppr="y"
 			;;
 		s)
-			usedsudo="sudo "
+			usesudo="sudo "
 			;;
 		r)
 			remv="--rm"
@@ -147,7 +147,7 @@ image="$1"
 shift
 
 # Turn off the xserver security for 20 seconds.
-if [ -n $xhst ]; then
+if [ -n "$xhst" ]; then
 	Dxtemp 20
 fi
 

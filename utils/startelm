@@ -85,7 +85,7 @@ fi
 if [ -z "$($usesudo docker ps -a | grep $ctnr)" ]; then
 	sudoswitch=""
 	if [ -n "$usesudo" ]; then
-		$sudoswitch="-s"
+		sudoswitch="-s"
 	fi
 	Dstart -tiGg $sudoswitch -n $ctnr -v $mntdir paullamar3/docker-knowthen-elm:latest
 else
