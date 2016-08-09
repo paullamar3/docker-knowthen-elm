@@ -41,9 +41,25 @@ within it and has a correspondingly large size.
 This is a normal *Docker* container but I've added a utility shell script to
 assist with starting it up. In the
 [repository](https://github.com/paullamar3/docker-knowthen-elm) there is a
-folder called `utils` containing the shell script `Dstart`. *Dstart* wraps
-some of the plumbing involved in starting a container that is to be used for
-developing code. It offers the following features:
+folder called `utils` containing the shell scripts `Dstart`, `Dxtemp` and
+`startelm`.  You want to copy these scripts so that they live somewhere in your
+path. I've set up a directory `~/.my_bins` in which I place little scripts like
+this.  I then added this directory to the end of my `$PATH` variable.
+
+### Dxtemp and Dstart: The plumbing
+
+> NOTE: You can skip this section and go straight to the section on using 
+> the `startelm` script if you like. The *startelm* script uses *Dstart* and 
+> *Dxtemp* but you don't need to understand the "plumbing" to use the 
+> *startelm* command.
+
+*Dxtemp* is a short script which turns off the X authentication temporarily.
+(You can specify the interval by passing in a value that represents the number
+of seconds you want the authentication turned off. The default value is 60
+seconds.)
+
+*Dstart* wraps some of the plumbing involved in starting a container that is to
+be used for developing code. It offers the following features:
 
 * Sets the *Git* global `user.name` and `user.email` in the container to match
   the host's settings.
@@ -58,7 +74,7 @@ the `elm reactor`.)
 * Easier mounting of host volumes (which are mounted to the container's
   `/media` folder as if it were a removable device).
 
-Here's an example of how I use *Dstart* to run my containers:
+Here's an example of how I might use *Dstart* to run my containers:
 
 ```
 Dstart -tiGg -n my_elm_dev -v "$PWD" paullamar3/docker-knowthen-elm:0.1.1
@@ -81,6 +97,78 @@ docker run -it -v /etc/localtime:/etc/localtime:ro -e DISPLAY --net=host \
 
 I much prefer to use *Dstart*.
 
+### startelm
+
+The *startelm* script lets you run (via `docker run`) or restart (via 
+`docker start`) you *Elm* development. To create and run your *Elm*
+container. There are a few different ways to create and run the container.
+
+First, the simplest way: 
+
+```
+startelm my_elm_dev
+```
+
+Assuming you don't already have a *Docker* container called "my\_elm\_dev",
+this command will create a new container of that name. The container should 
+launch with the current working directory mounted as a folder in the 
+container's `/media/` directory. I cloned the `/knowthen/elm` repository on *GitHub*
+into a local folder and then ran *startelm* in that directory so that
+I would have all of the exercises accessible to the container. 
+
+An *Atom* editor should open automatically (give it about 10 seconds). The 
+terminal from which you ran the *startelm* command will also switch to the 
+container and leave you at a bash prompt inside the container.
+
+This approach works fine on my *LMDE* (Linux Mint Debian Edition) computer.
+On that computer my user is a member of the `docker` group which means that
+I can execute *Docker* commands without using `sudo`.
+
+Second, the slightly more secure way:
+
+```
+startelm -s my_elm_dev
+```
+
+Use this version of the script if you have chosen *not* to add yourself
+to the `docker` group. (If you have to type `sudo docker ...` evertime you
+run a *Docker* command then this version is for you.
+
+Third, the "no X authentication" way:
+
+```
+startelm -x my_elm_dev
+```
+
+While testing this image I discovered that although it works fine
+on my *LMDE* machine, the *Atom* processor could not access the 
+*X server* when I ran the image on my *Mint 17.3* machine. I spent
+a very little bit of time looking into this but could not figure out
+why the *Mint 17.3* machine was not sharing its display with the container.
+For now I coded a quick hack in the form of the `-x` switch for the 
+`startelm` command. Specifying `-x` tells the script to disable the 
+*X* authentication on the computer for twenty seconds while the container
+is being run (or restarted). Specifying `-x` is a good way to ensure the
+container can access you *X server* but it is insecure. For twenty seconds
+*anyone* could connect to your *X* windows. I would try running without
+`-x` first; only use it if you have to.
+
+> WARNING: The `-x` switch actually runs the `xhost` command to disable and then
+> reenable the *X* authentication. If you are the only user of your machine,
+> you are *probably* OK. However if you are in a multi-user *Linux* environment 
+> you should use the `-x` switch with caution.
+
+
+> ASIDE: When I run `xhost` on each machine I get back the same results:
+> `SI:localuser:{user name}`. So I'm not sure why I need the `-x` switch on one but
+> I don't need it on the other. At some point I'll learn more about the *X* authority
+> system and see if there is a better way around this issue. For now, though, this
+> hack should get us up and running in the mean time.
+
+Of course the `-s` and `-x` switches can be combined into `-sx` if you need both.
+
+### Starting the container the first time
+
 The container should be configured so that you can begin the first set of
 exercises (i.e. in the `01 functions` folder). Assuming you started the
 container from within this folder or its parent you should be able to type
@@ -100,15 +188,10 @@ container in a "stopped" status. Later you can revisit the container by using
 the `docker start` command to pick up where you left off. Any packages you've
 installed thus far should still be there in the container. 
 
-However if you start up a new container with *Dstart* you will have a
-container in a "pristine" condition. Some packages and configuration settings
-may need to be applied again.
-
-For example, to restart the `my_elm_dev` container once you have exited:
-
-```
-docker start -i my_elm_dev
-```
+Note that you should issue the same *elmstart* command to restart an existing
+container that you used to initially create it. The *startelm* script checks
+for the container name in the existing containers and simply restarts
+the container if it finds it.
 
 ### But I *want* to learn how to set *Elm* up myself ...
 
@@ -128,13 +211,12 @@ see how I built the container. Learning how to set *Elm* up in a container is
 
 ## Work in progress ...
 
-So I've actually used this container (really version 0.1.0 but I'm redoing the
-exercises with this version now) to finish the first set of exercises.
+So I've actually used this container (version 0.1.2 as I write this)
+to finish the first three sets of exercises. No trouble thus far.
 Throughout the rest of the week I'll be finishing the rest of the course and
-will make fixes to the container whenever I run across something troublesome.
+will make fixes to the container whenever I run across something.
 Feel free to try this out and post any issues you find in my repository on
-*GitHub*. Be advised, however, that this project is just started and is "rough
-around the edges". Things should be more polished next week.
+*GitHub*. 
 
 ## I did this "for fun"
 
